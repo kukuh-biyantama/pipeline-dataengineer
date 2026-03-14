@@ -1,0 +1,56 @@
+services:
+  airflow-webserver:
+    image: airflow-spark:3.3.0-java11
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:password@host.docker.internal:5432/airflow
+      - AIRFLOW__CORE__FERNET_KEY=UKMzEm3yIuFYEq1y3-2FxPNWSVwRASpahmQ9kQfEr8Q=
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=true
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session
+      - AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK=true
+      - _AIRFLOW_DB_INIT=true
+      - _AIRFLOW_WWW_USER_CREATE=true
+      - _AIRFLOW_WWW_USER_USERNAME=admin
+      - _AIRFLOW_WWW_USER_PASSWORD=admin
+      - AIRFLOW_CONN_SPARK_DEFAULT=spark://spark-master:7077
+      - JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+      - PYSPARK_PYTHON=python3
+      - PYSPARK_DRIVER_PYTHON=python3
+    volumes:
+      - ../dags:/opt/airflow/dags
+      - ../logs:/opt/airflow/logs
+      - ../plugins:/opt/airflow/plugins
+      - ../spark-scripts:/opt/airflow/spark-scripts
+    ports:
+      - "8081:8080"
+    command: webserver
+    depends_on:
+      - airflow-scheduler
+    restart: always
+
+  airflow-scheduler:
+    image: airflow-spark:3.3.0-java11
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:password@host.docker.internal:5432/airflow
+      - AIRFLOW__CORE__FERNET_KEY=UKMzEm3yIuFYEq1y3-2FxPNWSVwRASpahmQ9kQfEr8Q=
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=true
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK=true
+      - AIRFLOW_CONN_SPARK_DEFAULT=spark://spark-master:7077
+      - JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+      - PYSPARK_PYTHON=python3
+      - PYSPARK_DRIVER_PYTHON=python3
+    volumes:
+      - ../dags:/opt/airflow/dags
+      - ../logs:/opt/airflow/logs
+      - ../plugins:/opt/airflow/plugins
+      - ../spark-scripts:/opt/airflow/spark-scripts
+    command: scheduler
+    restart: always
+
+networks:
+  default:
+    name: dataeng-network
+    external: true

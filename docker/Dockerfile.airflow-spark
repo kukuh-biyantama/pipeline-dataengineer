@@ -1,0 +1,23 @@
+FROM apache/airflow:2.7.1-python3.9
+
+# Switch to root user to install Java
+USER root
+
+# Install Java 11 and update package lists
+RUN apt-get update && \
+    apt-get install -y openjdk-11-jre-headless && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set JAVA_HOME environment variable
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+ENV PATH=$PATH:$JAVA_HOME/bin
+
+# Switch back to airflow user
+USER airflow
+
+# Install Apache Spark provider compatible with Spark 3.3.0
+RUN pip install --user apache-airflow-providers-apache-spark==4.1.3 pyspark==3.3.0
+
+# Verify installations
+RUN java -version && python -c "import pyspark; print(f'PySpark version: {pyspark.__version__}')"

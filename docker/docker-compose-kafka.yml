@@ -1,0 +1,59 @@
+# ...existing code...
+services:
+  zookeeper:
+    image: zookeeper:3.7
+    container_name: zookeeper
+    hostname: zookeeper
+    networks:
+      - dataeng-network
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka
+    hostname: kafka
+    networks:
+      - dataeng-network
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      # Increase Kafka JVM heap to handle large messages (ensure Docker has enough memory)
+      KAFKA_HEAP_OPTS: "-Xms6g -Xmx6g"
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_MESSAGE_MAX_BYTES: 1500000000
+      KAFKA_REPLICA_FETCH_MAX_BYTES: 1500000000
+      KAFKA_FETCH_MESSAGE_MAX_BYTES: 1500000000
+      KAFKA_SOCKET_REQUEST_MAX_BYTES: 1500000000
+    depends_on:
+      - zookeeper
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.0
+    container_name: kafka-ui
+    networks:
+      - dataeng-network
+    depends_on:
+      - zookeeper
+      - kafka
+    ports:
+      - "8083:8080"
+    restart: "no"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+
+networks:
+  dataeng-network:
+    driver: bridge
+    external: true

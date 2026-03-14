@@ -1,0 +1,69 @@
+FROM apache/airflow:2.7.1-python3.9
+USER root
+
+# Install OpenJDK-11
+RUN apt update && \
+    apt-get install -y openjdk-11-jdk && \
+    apt-get install -y ant && \
+    apt-get install -y procps && \
+    apt-get clean;
+
+# Set JAVA_HOME
+ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
+RUN export JAVA_HOME
+
+# Copy DAGs early so they are in the image; set ownership later
+COPY ./dags /opt/airflow/dags
+
+# Make the Airflow virtualenv writable by the airflow user
+RUN chown -R airflow:root /opt/airflow/venv || true
+
+# Switch to the airflow user and install packages using `python -m pip` which is
+# resilient even if the venv's pip binary is not present at build-time.
+USER airflow
+RUN python -m pip install --no-cache-dir \
+    lxml \
+    pyspark==3.3.2 \
+    apache-airflow-providers-apache-spark \
+    requests \
+    pandas || true
+
+# Ensure DAG ownership
+USER root
+RUN chown -R airflow:root /opt/airflow/dags
+USER airflow
+
+# Ensure the Airflow venv bin is on PATH and provide a stable symlink to the CLI
+ENV PATH="/opt/airflow/venv/bin:$PATH"
+RUN if [ -f /opt/airflow/venv/bin/airflow ]; then ln -sf /opt/airflow/venv/bin/airflow /usr/local/bin/airflow; fi
+
+USER airflow
+
+# Add a resilient wrapper so `airflow` waits for the venv binary to be available
+USER root
+RUN cat > /usr/local/bin/airflow <<'EOF'
+#!/bin/sh
+# Wait up to 60s for the venv-installed airflow executable
+timeout=60
+i=0
+while [ $i -lt $timeout ]; do
+    if [ -x /opt/airflow/venv/bin/airflow ]; then
+        exec /opt/airflow/venv/bin/airflow "$@"
+    fi
+    sleep 1
+    i=$((i+1))
+done
+echo 'airflow CLI not found in venv after waiting; falling back to import-based CLI' >&2
+# Try to run via airflow.cli if available, otherwise fail with a helpful message
+python - <<'PY'
+import importlib, sys
+try:
+        m = importlib.import_module('airflow.cli')
+        m.cli()
+except Exception as e:
+        sys.stderr.write('airflow CLI fallback failed: %s\n' % e)
+        sys.exit(1)
+PY
+EOF
+RUN chmod +x /usr/local/bin/airflow && chown root:root /usr/local/bin/airflow
+USER airflow
