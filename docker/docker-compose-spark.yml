@@ -1,45 +1,29 @@
-version: "3.8"
-
 services:
   spark-master:
-    container_name: ${SPARK_MASTER_CONTAINER_NAME:-spark-master}
-    hostname: ${SPARK_MASTER_HOST_NAME:-spark-master}
-    image: dataeng-dibimbing/spark
+    container_name: spark-master
+    hostname: spark-master
+    image: bitnami/spark:3.5
 
     environment:
       - SPARK_MODE=master
-      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-      - SPARK_RPC_ENCRYPTION_ENABLED=no
-      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-      - SPARK_SSL_ENABLED=no
 
     volumes:
       - ../spark-scripts:/spark-scripts
       - ../scripts:/scripts
 
     ports:
-      - "${SPARK_MASTER_UI:-8090}:8080"
-      - "${SPARK_MASTER_PORT:-7077}:7077"
-
-    command: >
-      /opt/spark/bin/spark-class
-      org.apache.spark.deploy.master.Master
-      --host ${SPARK_MASTER_HOST_NAME:-spark-master}
-      --port ${SPARK_MASTER_PORT:-7077}
+      - "8090:8080"
+      - "7077:7077"
 
   spark-worker-1:
-    container_name: ${SPARK_WORKER_CONTAINER_NAME:-spark-worker}-1
-    image: dataeng-dibimbing/spark
+    container_name: spark-worker-1
+    image: bitnami/spark:3.5
 
     environment:
       - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://${SPARK_MASTER_HOST_NAME:-spark-master}:${SPARK_MASTER_PORT:-7077}
+      - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_WORKER_MEMORY=1G
       - SPARK_WORKER_CORES=1
-      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-      - SPARK_RPC_ENCRYPTION_ENABLED=no
-      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-      - SPARK_SSL_ENABLED=no
 
     volumes:
       - ../spark-scripts:/spark-scripts
@@ -48,24 +32,15 @@ services:
     depends_on:
       - spark-master
 
-    command: >
-      /opt/spark/bin/spark-class
-      org.apache.spark.deploy.worker.Worker
-      spark://${SPARK_MASTER_HOST_NAME:-spark-master}:${SPARK_MASTER_PORT:-7077}
-
   spark-worker-2:
-    container_name: ${SPARK_WORKER_CONTAINER_NAME:-spark-worker}-2
-    image: dataeng-dibimbing/spark
+    container_name: spark-worker-2
+    image: bitnami/spark:3.5
 
     environment:
       - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://${SPARK_MASTER_HOST_NAME:-spark-master}:${SPARK_MASTER_PORT:-7077}
+      - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_WORKER_MEMORY=1G
       - SPARK_WORKER_CORES=1
-      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-      - SPARK_RPC_ENCRYPTION_ENABLED=no
-      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-      - SPARK_SSL_ENABLED=no
 
     volumes:
       - ../spark-scripts:/spark-scripts
